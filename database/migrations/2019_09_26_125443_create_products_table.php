@@ -21,7 +21,7 @@ class CreateProductsTable extends Migration
             $table->integer('quantity')->unsigned();
             $table->string('status')->default(Product::UNAVAILABE_PRODUCT);
             $table->string('image');
-            $table->integer('seller_id')->unsigned();
+            $table->unsignedBigInteger('seller_id');
             $table->timestamps();
             $table->softDeletes();
 
