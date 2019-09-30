@@ -61,7 +61,7 @@ class SellerProductController extends ApiController
         $request->validate([
             'quantity' => 'integer|min:1',
             'status' => 'in:' . Product::AVAILABE_PRODUCT . ',' . Product::UNAVAILABE_PRODUCT,
-            // 'image' => 'image',
+            'image' => 'image',
         ]);
 
         $this->checkSeller($seller, $product);
