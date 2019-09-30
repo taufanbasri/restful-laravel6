@@ -105,4 +105,11 @@ class UserController extends ApiController
 
         return $this->showOne($user);
     }
+
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        return $this->showOne($user);
+    }
 }

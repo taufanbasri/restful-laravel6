@@ -13,6 +13,7 @@ class Product extends Model
     const UNAVAILABE_PRODUCT = 'unavailable';
 
     protected $dates = ['deleted_at'];
+    protected $hidden = ['pivot'];
     protected $fillable = [
         'name', 'description', 'quantity', 'status', 'image', 'seller_id'
     ];
