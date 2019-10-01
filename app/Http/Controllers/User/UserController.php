@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers\User;
 
-use App\Http\Controllers\ApiController;
 use App\User;
 use Illuminate\Http\Request;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Auth\Events\Registered;
+use App\Http\Controllers\ApiController;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class UserController extends ApiController
 {
+    public function __construct() {
+        $this->middleware(['verify' => true])->only('store', 'update');
+    }
+    
     /**
      * Display a listing of the resource.
      *
@@ -38,6 +45,8 @@ class UserController extends ApiController
         $data['admin'] = User::REGULAR_USER;
 
         $user = User::create($data);
+
+        event(new Registered($user));
 
         return $this->showOne($user, 201);
     }
@@ -72,8 +81,13 @@ class UserController extends ApiController
             $user->name = $request->name;
         }
 
+        if ($request->has('email') && $user->email != $data['email']) {
+            $user->email_verified_at = null;
+            $user->email = $data['email'];
+        }
+
         if ($request->has('password')) {
-            $user->password = bcrypt($request->password);
+            $user->password = bcrypt($data['password']);
         }
 
         if ($request->has('admin')) {
@@ -81,7 +95,7 @@ class UserController extends ApiController
                 return $this->errorResponse('Only verified users can modify the admin field', 409);
             }
 
-            $user->admin = $request->admin;
+            $user->admin = $data['admin'];
         }
 
         if ($user->isClean()) {
@@ -106,10 +120,58 @@ class UserController extends ApiController
         return $this->showOne($user);
     }
 
+    /**
+     * Information about signed user
+     */
     public function me(Request $request)
     {
         $user = $request->user();
 
         return $this->showOne($user);
+    }
+
+    /**
+     * Mark the authenticated user's email address as verified.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    public function verify(Request $request, User $user, $hash)
+    {
+        // if (! hash_equals((string) $request->route('user'), (string) $request->user()->getKey())) {
+        //     throw new AuthorizationException();
+        // }
+
+        if (! hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
+            throw new AuthorizationException;
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return $this->showMessage('Account already verified');
+        }
+
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return $this->showMessage('The account has been verified successfully');
+    }
+
+    /**
+     * Resend the email verification notification.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function resend(User $user)
+    {
+        if ($user->hasVerifiedEmail()) {
+            return $this->showMessage('Account already verified');
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return $this->showMessage('A fresh verification link has been sent to your email address.');
     }
 }
