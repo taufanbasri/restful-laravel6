@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Transformers\UserTransformer;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -11,8 +12,13 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use Notifiable, SoftDeletes;
 
+    public $transformer = UserTransformer::class;
+
     const ADMIN_USER = 'true';
     const REGULAR_USER = 'false';
+
+    const VERIFIED_USER = 'true';
+    const UNVERIFIED_USER = 'false';
 
     /**
      * The attributes that are mass assignable.
@@ -20,7 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'verified', 'verification_token', 'admin'
+        'name', 'email', 'password', 'verified', 'admin'
     ];
 
     protected $dates = ['deleted_at'];
@@ -32,7 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token', 'verification_token'
+        'password', 'remember_token',
     ];
 
     /**
@@ -62,11 +68,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getEmailAttribute($email)
     {
         return ucwords($email);
-    }
-
-    public function isVerified()
-    {
-        return $this->email_verified_at != null;
     }
 
     public function isAdmin()

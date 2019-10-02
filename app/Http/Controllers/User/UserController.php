@@ -7,12 +7,16 @@ use Illuminate\Http\Request;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Events\Registered;
 use App\Http\Controllers\ApiController;
+use App\Transformers\UserTransformer;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class UserController extends ApiController
 {
     public function __construct() {
+        parent::__construct();
+
         $this->middleware(['verify' => true])->only('store', 'update');
+        $this->middleware('transform.input:' . UserTransformer::class)->only('store', 'update');
     }
     
     /**
@@ -42,6 +46,7 @@ class UserController extends ApiController
         ]);
 
         $data['password'] = bcrypt($request->password);
+        $data['verified'] = User::UNVERIFIED_USER;
         $data['admin'] = User::REGULAR_USER;
 
         $user = User::create($data);
@@ -74,6 +79,7 @@ class UserController extends ApiController
         $data = $request->validate([
             'email' => 'email|unique:users,email,' . $user->id,
             'password' => 'min:8|confirmed',
+            'verified' => 'in:' . User::VERIFIED_USER . ',' . User::UNVERIFIED_USER,
             'admin' => 'in:' . User::ADMIN_USER . ',' . User::REGULAR_USER,
         ]);
 
@@ -91,11 +97,20 @@ class UserController extends ApiController
         }
 
         if ($request->has('admin')) {
-            if (!$user->isVerified()) {
+            if (!$user->hasVerifiedEmail()) {
                 return $this->errorResponse('Only verified users can modify the admin field', 409);
             }
 
             $user->admin = $data['admin'];
+        }
+
+        if ($request->has('verified')) {
+            if (!$user->hasVerifiedEmail()) {
+                return $this->errorResponse('Only verified users can modify the verified field', 409);
+            }
+
+            $user->email_verified_at = now();
+            $user->verified = $data['verified'];
         }
 
         if ($user->isClean()) {
@@ -153,6 +168,9 @@ class UserController extends ApiController
 
         if ($user->markEmailAsVerified()) {
             event(new Verified($user));
+            
+            $user->verified = 'true';
+            $user->save();
         }
 
         return $this->showMessage('The account has been verified successfully');

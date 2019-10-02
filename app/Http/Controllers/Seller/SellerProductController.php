@@ -9,10 +9,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\ApiController;
+use App\Transformers\ProductTransformer;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class SellerProductController extends ApiController
 {
+    public function __construct() {
+        parent::__construct();
+
+        // $this->middleware('transform.input:' . ProductTransformer::class)->only('store');
+    }
+
     /**
      * Display a listing of the resource.
      *
