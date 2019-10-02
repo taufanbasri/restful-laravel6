@@ -17,10 +17,15 @@ class TransformInput
     public function handle($request, Closure $next, $transformer)
     {
         $transformedInput = [];
+        $allFields = $request->all();
+        $queryParams = $request->query();
 
-        foreach ($request->request->all() as $input => $value) {
+        $transformableFields = array_diff($allFields, $queryParams);
+
+        foreach ($transformableFields as $input => $value) {
             $transformedInput[$transformer::originalAttribute($input)] = $value;
         }
+        
         $request->replace($transformedInput);
 
         $response = $next($request);
