@@ -13,8 +13,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 class UserController extends ApiController
 {
     public function __construct() {
-        parent::__construct();
-
+        $this->middleware('auth:api')->except('store', 'verify', 'resend');
+        $this->middleware('client.credentials')->only('store', 'resend');
         $this->middleware(['verify' => true])->only('store', 'update');
         $this->middleware('transform.input:' . UserTransformer::class)->only('store', 'update');
     }
@@ -87,9 +87,12 @@ class UserController extends ApiController
             $user->name = $request->name;
         }
 
-        if ($request->has('email') && $user->email != $data['email']) {
-            $user->email_verified_at = null;
+        if ($request->has('email') && (strtolower($user->email) != $data['email'])) {
             $user->email = $data['email'];
+            $user->email_verified_at = null;
+            $user->verified = 'false';
+
+            event(new Registered($user));
         }
 
         if ($request->has('password')) {
@@ -104,14 +107,14 @@ class UserController extends ApiController
             $user->admin = $data['admin'];
         }
 
-        if ($request->has('verified')) {
-            if (!$user->hasVerifiedEmail()) {
-                return $this->errorResponse('Only verified users can modify the verified field', 409);
-            }
+        // if ($request->has('verified')) {
+        //     if (!$user->hasVerifiedEmail()) {
+        //         return $this->errorResponse('Only admin users can modify the verified field', 409);
+        //     }
 
-            $user->email_verified_at = now();
-            $user->verified = $data['verified'];
-        }
+        //     $user->email_verified_at = now();
+        //     $user->verified = $data['verified'];
+        // }
 
         if ($user->isClean()) {
             return $this->errorResponse('You need to specify a different value to update', 422);
