@@ -17,6 +17,10 @@ class UserController extends ApiController
         $this->middleware('client.credentials')->only('store', 'resend');
         $this->middleware(['verify' => true])->only('store', 'update');
         $this->middleware('transform.input:' . UserTransformer::class)->only('store', 'update');
+        $this->middleware('scope:manage-account')->only('show', 'update');
+        $this->middleware('can:view,user')->only('show');
+        $this->middleware('can:update,user')->only('update');
+        $this->middleware('can:delete,user')->only('destroy');
     }
     
     /**
@@ -26,6 +30,8 @@ class UserController extends ApiController
      */
     public function index()
     {
+        $this->allowedAdminAction();
+
         $users = User::all();
 
         return $this->showAll($users);
@@ -91,8 +97,6 @@ class UserController extends ApiController
             $user->email = $data['email'];
             $user->email_verified_at = null;
             $user->verified = 'false';
-
-            event(new Registered($user));
         }
 
         if ($request->has('password')) {
@@ -100,21 +104,25 @@ class UserController extends ApiController
         }
 
         if ($request->has('admin')) {
-            if (!$user->hasVerifiedEmail()) {
+            $this->allowedAdminAction();
+
+            if (!auth()->user()->hasVerifiedEmail()) {
                 return $this->errorResponse('Only verified users can modify the admin field', 409);
             }
 
             $user->admin = $data['admin'];
         }
 
-        // if ($request->has('verified')) {
-        //     if (!$user->hasVerifiedEmail()) {
-        //         return $this->errorResponse('Only admin users can modify the verified field', 409);
-        //     }
+        if ($request->has('verified')) {
+            $this->allowedAdminAction();
+            
+            if (!auth()->user()->isAdmin()) {
+                return $this->errorResponse('Only admin users can modify the verified field', 409);
+            }
 
-        //     $user->email_verified_at = now();
-        //     $user->verified = $data['verified'];
-        // }
+            $user->email_verified_at = now();
+            $user->verified = $data['verified'];
+        }
 
         if ($user->isClean()) {
             return $this->errorResponse('You need to specify a different value to update', 422);
