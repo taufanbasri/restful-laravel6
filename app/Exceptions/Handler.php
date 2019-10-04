@@ -58,6 +58,16 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
+        $response = $this->handleException($request, $exception);
+
+        return $response;
+    }
+
+    /**
+     * Handle All Exception
+     */
+    protected function handleException($request, Exception $exception)
+    {
         /**
          * ValidationException
          */
